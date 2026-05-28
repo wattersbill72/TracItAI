@@ -145,22 +145,37 @@ Validate all environment variables at startup using Zod. Export a typed `env` ob
 import { z } from 'zod'
 
 const envSchema = z.object({
+  // Database
   DATABASE_URL: z.string().min(1),
+  // Auth
   JWT_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
+  // Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1),
+  // Email
   RESEND_API_KEY: z.string().min(1),
-  RESEND_FROM_EMAIL: z.string().email(),
+  RESEND_FROM_EMAIL: z.string().email().default('noreply@tracitai.com'),
+  // OpenAI (Whisper)
   OPENAI_API_KEY: z.string().min(1),
+  // AWS Bedrock
   AWS_ACCESS_KEY_ID: z.string().min(1),
   AWS_SECRET_ACCESS_KEY: z.string().min(1),
   AWS_REGION: z.string().default('us-west-2'),
+  BEDROCK_MODEL_LITE: z.string().default('amazon.nova-lite-v1:0'),
+  BEDROCK_MODEL_PRO: z.string().default('amazon.nova-pro-v1:0'),
+  // Modal (CV processing)
   MODAL_TOKEN_ID: z.string().min(1),
   MODAL_TOKEN_SECRET: z.string().min(1),
-  NEXT_PUBLIC_APP_URL: z.string().url(),
+  MODAL_CALLBACK_SECRET: z.string().min(1),
+  // Golf Intelligence
+  GOLF_INTELLIGENCE_API_KEY: z.string().min(1),
+  GOLF_INTELLIGENCE_BASE_URL: z.string().url().default('https://api.golfintelligence.com'),
+  // App
+  APP_URL: z.string().url(),
 })
 
 export const env = envSchema.parse(process.env)
+export type Env = z.infer<typeof envSchema>
 ```
 
 ---
@@ -171,5 +186,7 @@ export const env = envSchema.parse(process.env)
 - Do not use Next.js — this is Vite + React with Vercel Functions in the `/api` directory
 - Tailwind v4 syntax if available, otherwise v3 with `tailwind.config.ts`
 - Set up path aliases in `tsconfig.json`: `@/*` → `./src/*`
-- `.env.example` must document every variable with a one-line comment — no values
+- `.env.example` must document every variable from `src/lib/env.ts` with a one-line comment — no values
 - Prettier config: single quotes, 2 space indent, trailing commas, 100 char line width
+- Env var naming: server-side vars are plain (e.g. `APP_URL`). `NEXT_PUBLIC_` prefix is Next.js convention and does NOT apply here. Client-side vars exposed to the browser use `VITE_` prefix.
+- `GOLF_INTELLIGENCE_API_KEY` and `MODAL_TOKEN_ID/SECRET` are server-only — never in the client bundle

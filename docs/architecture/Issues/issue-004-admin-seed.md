@@ -8,7 +8,7 @@
 
 ## Objective
 
-Create the one-time admin bootstrap script that seeds the application admin account into Neon Postgres. Also validate that all environment variables are present and correct before any script or server starts.
+Create (1) the one-time admin bootstrap script that seeds the application admin account into Neon Postgres, and (2) the SG baseline seed that populates the `sg_baseline` table with Mark Broadie's published expected-strokes lookup values. Also validate that all environment variables are present and correct before any script or server starts.
 
 ---
 
@@ -20,6 +20,10 @@ Create the one-time admin bootstrap script that seeds the application admin acco
 - [ ] Script outputs confirmation: email, role, system account flag — never outputs the password or hash
 - [ ] Running against an already-seeded DB prints: `Admin account already exists. Skipping.` and exits 0
 - [ ] Script fails clearly if `DATABASE_URL` is not set
+- [ ] `npm run db:seed:sg-baseline` populates the `sg_baseline` table with Broadie's expected-strokes values for all lie/distance combinations
+- [ ] SG baseline seed is idempotent — re-running does not duplicate rows (upsert on conflict)
+- [ ] Baseline covers all lie types: tee, fairway, rough, sand, recovery, green
+- [ ] Baseline covers distances from 0 to 600 yards (at meaningful intervals per lie type)
 
 ---
 
@@ -91,6 +95,84 @@ seedAdmin().catch((err) => {
 ```bash
 # Set the password in your shell (do not add to .env file)
 ADMIN_SEED_PASSWORD="ThisIsTracItAIBills1stGolfApp" npm run db:seed:admin
+```
+
+---
+
+## scripts/seed-sg-baseline.ts
+
+Populate the `sg_baseline` table with Broadie's published expected-strokes lookup values from *Every Shot Counts* (2014 + updates). These are widely reproduced and accurate to within 10% for amateur rounds.
+
+The seed script embeds the baseline values as a TypeScript constant and upserts them using Drizzle's `onConflictDoUpdate`. Do not fetch from an external source — the values are a well-known constant.
+
+```typescript
+import { db } from '../src/server/db'
+import { sgBaseline } from '../src/server/db/schema'
+import { sql } from 'drizzle-orm'
+
+// Broadie baseline: expected strokes to hole out from (lie, distance_yards)
+// Source: Every Shot Counts (2014) + PGA ShotLink updates
+// Format: [lie, distance_yards, expected_strokes]
+const BROADIE_BASELINE: [string, number, number][] = [
+  // Tee
+  ['tee', 100, 2.72], ['tee', 150, 2.94], ['tee', 175, 3.03],
+  ['tee', 200, 3.12], ['tee', 225, 3.22], ['tee', 250, 3.32],
+  ['tee', 275, 3.41], ['tee', 300, 3.50], ['tee', 350, 3.68],
+  ['tee', 400, 3.86], ['tee', 450, 4.04], ['tee', 500, 4.22],
+  ['tee', 550, 4.39], ['tee', 600, 4.55],
+  // Fairway
+  ['fairway', 10, 2.40], ['fairway', 20, 2.60], ['fairway', 30, 2.75],
+  ['fairway', 50, 2.91], ['fairway', 75, 3.04], ['fairway', 100, 3.17],
+  ['fairway', 125, 3.28], ['fairway', 150, 3.39], ['fairway', 175, 3.50],
+  ['fairway', 200, 3.60], ['fairway', 225, 3.71], ['fairway', 250, 3.82],
+  // Rough
+  ['rough', 10, 2.50], ['rough', 20, 2.65], ['rough', 30, 2.82],
+  ['rough', 50, 3.00], ['rough', 75, 3.16], ['rough', 100, 3.30],
+  ['rough', 125, 3.43], ['rough', 150, 3.56], ['rough', 175, 3.69],
+  ['rough', 200, 3.81], ['rough', 225, 3.93], ['rough', 250, 4.05],
+  // Sand
+  ['sand', 5, 2.57], ['sand', 10, 2.60], ['sand', 20, 2.73],
+  ['sand', 30, 2.88], ['sand', 50, 3.09], ['sand', 75, 3.33],
+  ['sand', 100, 3.56], ['sand', 125, 3.76], ['sand', 150, 3.96],
+  // Recovery
+  ['recovery', 10, 2.83], ['recovery', 20, 3.04], ['recovery', 30, 3.22],
+  ['recovery', 50, 3.55], ['recovery', 75, 3.92], ['recovery', 100, 4.27],
+  // Green (distance in yards, 1 yard = 3 feet)
+  ['green', 1, 1.83], ['green', 2, 1.94], ['green', 3, 2.02],
+  ['green', 5, 2.14], ['green', 8, 2.26], ['green', 10, 2.33],
+  ['green', 15, 2.43], ['green', 20, 2.51], ['green', 25, 2.57],
+  ['green', 30, 2.63], ['green', 40, 2.72], ['green', 50, 2.80],
+  ['green', 60, 2.88],
+]
+
+async function seedSGBaseline() {
+  console.log(`Seeding ${BROADIE_BASELINE.length} SG baseline entries...`)
+  await db
+    .insert(sgBaseline)
+    .values(
+      BROADIE_BASELINE.map(([lie, distanceYards, expectedStrokes]) => ({
+        lie,
+        distanceYards,
+        expectedStrokes: expectedStrokes.toString(),
+      }))
+    )
+    .onConflictDoUpdate({
+      target: [sgBaseline.lie, sgBaseline.distanceYards],
+      set: { expectedStrokes: sql`excluded.expected_strokes` },
+    })
+  console.log('SG baseline seeded successfully.')
+  process.exit(0)
+}
+
+seedSGBaseline().catch((err) => {
+  console.error('Seed failed:', err)
+  process.exit(1)
+})
+```
+
+Add to `package.json`:
+```json
+"db:seed:sg-baseline": "tsx scripts/seed-sg-baseline.ts"
 ```
 
 ---

@@ -76,7 +76,9 @@ if (cached) return formatFromDB(cached)
 
 ## Notes for Claude Code
 
-- Build client against actual Golf Intelligence API response shape — adjust types to match
+- **Golf Intelligence API account needed before this issue can be tested end-to-end.** Build the integration correctly (real client, real types, real error handling). In dev without a live key, the service should return an empty array for search results and a structured error for scorecard pulls — graceful, not a crash. Once the key is in `.env.local`, the live integration should work without any code changes.
+- Build client against actual Golf Intelligence API response shape — adjust types to match what the API actually returns
 - Log every API call — credit-based billing means we never want unexpected calls
 - Rate limit our search endpoint: max 10 searches per user per minute
 - Search results already in our DB should show `cachedLocally: true`
+- API key accessed via `env.GOLF_INTELLIGENCE_API_KEY` — never `process.env` directly

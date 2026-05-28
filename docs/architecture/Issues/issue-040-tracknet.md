@@ -1,4 +1,4 @@
-# Issue 040 — TrackNet Ball Flight Detection
+# Issue 040 — Ball Flight Detection (YOLO + ByteTrack)
 
 **Phase:** 8 — CV Processing  
 **Depends on:** Issue 038  
@@ -26,17 +26,16 @@ Implement ball flight detection on DTL camera clips. Extract ball position per f
 
 ---
 
-## Implementation options
+## Implementation
 
-**Option A: TrackNet** (purpose-built for sports ball tracking)
-- nttcom/TrackNetV3 or similar
-- Best accuracy for small fast balls
+**Use: YOLOv8 nano + ByteTrack**
 
-**Option B: YOLO + ByteTrack**
-- YOLOv8 nano + ByteTrack for multi-frame consistency
-- More general purpose, well-documented
+- `pip install ultralytics` (already in Modal image)
+- ByteTrack (`pip install lapx`) for multi-frame trajectory consistency
+- YOLOv8 nano trained on sports ball detection — use `ultralytics` pretrained weights or fine-tune on golf ball frames if accuracy is insufficient
+- Document model weights version and source in code comments
 
-Choose whichever is available via pip without licensing issues. Document the choice in code comments.
+This was chosen over TrackNetV3 because: ultralytics is already a Modal image dependency, pip install is straightforward, licensing is clear (AGPL for ultralytics — acceptable for this use case), and documentation is excellent.
 
 ---
 
