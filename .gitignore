@@ -25,5 +25,5 @@ Thumbs.db
 *.sln
 *.sw?
 
-# Drizzle
-src/server/db/migrations/
+# Drizzle (migrations are tracked — required for db:migrate)
+
